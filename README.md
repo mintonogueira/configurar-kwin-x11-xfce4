@@ -1,6 +1,6 @@
 # KWin X11 como Window Manager do XFCE no Arch Linux
 
-Este projeto automatiza a substituição do **xfwm4 + compositor externo** pelo **KWin X11**, mantendo o restante do ambiente XFCE: painel, xfdesktop, Thunar, configurações, plugins e aplicações. O repositório também reúne correções complementares validadas durante a implantação, incluindo a compatibilidade do configurador de workspaces do XFCE com o KWin e a instalação das bibliotecas opcionais necessárias aos plugins do Tumbler.
+Este projeto automatiza a substituição do **xfwm4 + compositor externo** pelo **KWin X11**, mantendo o restante do ambiente XFCE: painel, xfdesktop, Thunar, configurações, plugins e aplicações.
 
 A implementação inicial é específica para **Arch Linux + XFCE em sessão X11**.
 
@@ -72,49 +72,6 @@ Depois, no próprio XFCE, abra novamente **Configurações dos espaços de traba
 A correção é global: o adaptador fica em `/usr/local/bin`, portanto não precisa ser repetido usuário por usuário.
 
 O script foi validado sintaticamente como POSIX `sh`; a validação funcional deste update deve ser confirmada no host Arch/XFCE após a instalação.
-
-## Atualização: bibliotecas opcionais do Tumbler
-
-Durante a investigação do tempo de inicialização da sessão XFCE, o `tumblerd` apresentou falhas ao carregar três plugins porque as respectivas bibliotecas opcionais não estavam instaladas:
-
-```text
-tumbler-gepub-thumbnailer.so -> libgepub-0.7.so.0
-tumbler-odf-thumbnailer.so   -> libgsf-1.so.114
-tumbler-raw-thumbnailer.so   -> libopenrawgnome.so.9
-```
-
-No sistema Arch Linux usado nos testes, a correção foi validada instalando:
-
-```text
-libgepub
-libgsf
-libopenraw
-```
-
-Após a instalação, o `tumblerd.service` foi reiniciado com sucesso e os erros de carregamento observados anteriormente deixaram de aparecer na verificação executada.
-
-Foi adicionado ao repositório o script complementar:
-
-```text
-instalar-dependencias-tumbler-xfce.sh
-```
-
-Aplicação:
-
-```sh
-chmod +x instalar-dependencias-tumbler-xfce.sh
-sudo ./instalar-dependencias-tumbler-xfce.sh install
-```
-
-Verificação:
-
-```sh
-./instalar-dependencias-tumbler-xfce.sh status
-```
-
-O script usa Shell POSIX `/bin/sh`, verifica Arch Linux e o pacote `tumbler`, instala somente `libgepub`, `libgsf` e `libopenraw` com `pacman -S --needed`, valida os pacotes e tenta encerrar somente a instância `tumblerd` do usuário que chamou `sudo`, permitindo que o serviço seja recarregado pela sessão quando necessário.
-
-Ele **não executa `pacman -Syyu` e não força uma atualização completa do sistema**.
 
 ## O que o instalador principal faz
 
@@ -237,22 +194,6 @@ Ele:
 9. registra operações em `/var/log/corrigir-xfce-workspace-settings-kwin-x11.log`;
 10. oferece `status` e `remove`.
 
-## Script das dependências do Tumbler
-
-O script `instalar-dependencias-tumbler-xfce.sh` é independente do instalador principal e pode ser executado em uma instalação XFCE já existente.
-
-Ele:
-
-1. confirma Arch Linux e `pacman`;
-2. confirma que o pacote `tumbler` está instalado;
-3. instala `libgepub`, `libgsf` e `libopenraw` com `--needed`;
-4. valida os três pacotes após a transação;
-5. não usa `-Syyu`;
-6. não modifica KWin, KGlobalAccel, workspaces ou atalhos;
-7. tenta recarregar o `tumblerd` do usuário que chamou `sudo` sem afetar outros usuários;
-8. registra operações em `/var/log/instalar-dependencias-tumbler-xfce.log`;
-9. oferece `install`, `status`, `--help` e `--version`.
-
 ## Backup e restauração
 
 Antes da alteração principal é criado um backup em:
@@ -318,3 +259,44 @@ O shim `/usr/local/bin/xfwm4-workspace-settings` está fora da árvore controlad
 - Arch Linux `xfce4-session`: https://archlinux.org/packages/extra/x86_64/xfce4-session/
 - Arch Linux `xmlstarlet`: https://archlinux.org/packages/extra/x86_64/xmlstarlet/
 - Xfce session manager: https://docs.xfce.org/xfce/xfce4-session/start
+
+---
+
+## Atualização complementar: dependências opcionais do Tumbler
+
+Durante a investigação de lentidão na inicialização da sessão XFCE, foram encontrados erros de carregamento de três plugins opcionais do Tumbler por falta das respectivas bibliotecas:
+
+```text
+tumbler-gepub-thumbnailer.so -> libgepub-0.7.so.0
+tumbler-odf-thumbnailer.so   -> libgsf-1.so.114
+tumbler-raw-thumbnailer.so   -> libopenrawgnome.so.9
+```
+
+A correção validada no Arch Linux foi instalar:
+
+```text
+libgepub
+libgsf
+libopenraw
+```
+
+O script complementar adicionado ao repositório é:
+
+```text
+instalar-dependencias-tumbler-xfce.sh
+```
+
+Uso:
+
+```sh
+chmod +x instalar-dependencias-tumbler-xfce.sh
+sudo ./instalar-dependencias-tumbler-xfce.sh install
+```
+
+Verificação:
+
+```sh
+./instalar-dependencias-tumbler-xfce.sh status
+```
+
+Esse script é independente do instalador principal. Ele não altera `configurar-kwin-x11-xfce4.sh`, não altera `corrigir-xfce-workspace-settings-kwin-x11.sh`, não modifica atalhos, workspaces, KWin ou KGlobalAccel. Ele instala apenas `libgepub`, `libgsf` e `libopenraw` com `pacman -S --needed` e valida a instalação.
