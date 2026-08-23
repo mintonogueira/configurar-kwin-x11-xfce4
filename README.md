@@ -1,195 +1,96 @@
-# KWin X11 como Window Manager do XFCE no Arch Linux
+# XFCE + KWin X11 no Arch Linux
 
-Este projeto automatiza a substituição do **xfwm4 + compositor externo** pelo **KWin X11**, mantendo o restante do ambiente XFCE: painel, xfdesktop, Thunar, configurações, plugins e aplicações. O repositório também reúne correções complementares validadas durante a implantação, incluindo a compatibilidade do configurador de workspaces do XFCE com o KWin e a instalação das bibliotecas opcionais necessárias aos plugins do Tumbler.
+Suíte modular para construir uma sessão **XFCE + KWin X11** no Arch Linux sem `xfce4-session`, sem `xfwm4` e sem Plasma Desktop como sessão.
 
-A implementação inicial é específica para **Arch Linux + XFCE em sessão X11**.
+O projeto parte de uma instalação Arch limpa, configura o Chaotic-AUR, instala os componentes selecionados, habilita os serviços necessários, cria uma sessão própria do LightDM com Slick Greeter, integra o XFCE ao KWin e valida o resultado.
 
-## Estado da solução
-
-**Solução base testada.**
-
-A configuração foi validada em Arch Linux com XFCE 4.20, sessão X11 e KWin X11 6.7.4. O teste final foi feito com um usuário novo criado após a implantação de `/etc/skel`, sem configuração pessoal anterior. Foram confirmados:
-
-- KWin X11 como gerenciador de janelas;
-- compositor do próprio KWin ativo, sem Picom;
-- quatro workspaces iniciais;
-- possibilidade de criar workspace 5, 6, 7, 8 e posteriores;
-- `Alt+Tab` para próxima janela;
-- `Alt+Shift+Tab` para janela anterior;
-- `Alt+F4` para fechar janela;
-- `Super+Tab` para próximo workspace;
-- `Super+Shift+Tab` para workspace anterior.
-
-> Importante: os **4 workspaces são somente o valor inicial de novos usuários**. Eles não são regravados em cada login e não funcionam como limite.
-
-## Atualização: compatibilidade do configurador de workspaces do XFCE
-
-Após a remoção do `xfwm4`, foi identificado um comportamento residual do XFCE: ao solicitar a abertura das configurações de espaços de trabalho, alguns componentes ainda tentam executar:
+## Arquitetura
 
 ```text
-xfwm4-workspace-settings
+LightDM + Slick Greeter
+        |
+        v
+/usr/share/xsessions/xfce-kwin.desktop
+        |
+        v
+/usr/local/bin/start-xfce-kwin
+        |
+        +-- xfsettingsd
+        +-- kglobalacceld
+        +-- polkit-gnome-authentication-agent-1
+        +-- xscreensaver
+        +-- xfce4-power-manager
+        +-- xfdesktop
+        +-- xfce4-panel
+        +-- nm-applet
+        +-- blueman-applet
+        +-- thunar --daemon
+        |
+        `-- exec kwin_x11
 ```
 
-Como esse executável pertence ao `xfwm4`, a chamada passa a falhar após a substituição completa do gerenciador de janelas.
+O KWin X11 é o único window manager/compositor da sessão. O XFCE permanece responsável pelo desktop, painel, configurações, notificações e integrações do ambiente.
 
-Foi adicionado ao repositório o script:
+## Escopo atual
+
+O fluxo mestre executa, nesta ordem:
+
+1. `00-validar-ambiente.sh`
+2. `05-configurar-chaotic-aur.sh`
+3. `10-instalar-pacotes.sh`
+4. `20-configurar-servicos.sh`
+5. `30-configurar-sessao-xfce-kwin-x11.sh`
+6. `40-configurar-kwin-atalhos-workspaces.sh`
+7. `50-configurar-integracoes-desktop.sh`
+8. `80-validar-instalacao.sh`
+
+O orquestrador é:
 
 ```text
-corrigir-xfce-workspace-settings-kwin-x11.sh
+instalar-tudo.sh
 ```
 
-Ele instala globalmente um shim em:
+### Script opcional
+
+`60-preparar-perfil-skel.sh` prepara `/etc/skel` para novos usuários, mas **não faz parte do fluxo mestre**. Ele só deve ser executado quando o administrador quiser provisionar um perfil inicial para contas criadas posteriormente.
+
+### Wayland
+
+Nenhuma sessão Wayland é criada, configurada ou validada por esta suíte. Os pacotes `kwin` e `xorg-xwayland` permanecem instalados porque fazem parte da seleção atual, mas qualquer desenho de sessão Wayland será tratado em etapa futura e separada.
+
+## Chaotic-AUR
+
+O Chaotic-AUR é configurado **antes** da instalação da lista principal.
+
+Os seguintes pacotes são instalados diretamente do repositório binário `chaotic-aur` com `pacman`:
 
 ```text
-/usr/local/bin/xfwm4-workspace-settings
+paru
+octopi
+google-chrome
+brave-bin
+dockbarx
+xfce4-dockbarx-plugin
 ```
 
-Esse shim mantém compatibilidade com a chamada esperada pelo XFCE, mas abre o configurador real de desktops virtuais do KWin por meio de `kcmshell6`.
+O script não usa `paru -S`, `makepkg` ou clone de PKGBUILD para instalar essa lista.
 
-No Arch Linux atual, o módulo fornecido pelo pacote `kwin-x11` é:
+## Rede
+
+A pilha de rede é a padrão do NetworkManager:
 
 ```text
-kcm_kwin_virtualdesktops_x11
+pacote do daemon:   networkmanager
+serviço systemd:    NetworkManager.service
+pacote do applet:   network-manager-applet
+executável gráfico: nm-applet
 ```
 
-O script também possui fallback para o identificador sem o sufixo `_x11` caso uma versão futura utilize essa forma.
+`nm-applet` é iniciado pela sessão gráfica e não é tratado como serviço systemd.
 
-### Aplicar a atualização em uma instalação já configurada
+## Workspaces e integração XFCE -> KWin
 
-```sh
-chmod +x corrigir-xfce-workspace-settings-kwin-x11.sh
-sudo ./corrigir-xfce-workspace-settings-kwin-x11.sh install
-```
-
-Verificação:
-
-```sh
-./corrigir-xfce-workspace-settings-kwin-x11.sh status
-```
-
-Depois, no próprio XFCE, abra novamente **Configurações dos espaços de trabalho**.
-
-A correção é global: o adaptador fica em `/usr/local/bin`, portanto não precisa ser repetido usuário por usuário.
-
-O script foi validado sintaticamente como POSIX `sh`; a validação funcional deste update deve ser confirmada no host Arch/XFCE após a instalação.
-
-## Atualização: bibliotecas opcionais do Tumbler
-
-Durante a investigação do tempo de inicialização da sessão XFCE, o `tumblerd` apresentou falhas ao carregar três plugins porque as respectivas bibliotecas opcionais não estavam instaladas:
-
-```text
-tumbler-gepub-thumbnailer.so -> libgepub-0.7.so.0
-tumbler-odf-thumbnailer.so   -> libgsf-1.so.114
-tumbler-raw-thumbnailer.so   -> libopenrawgnome.so.9
-```
-
-No sistema Arch Linux usado nos testes, a correção foi validada instalando:
-
-```text
-libgepub
-libgsf
-libopenraw
-```
-
-Após a instalação, o `tumblerd.service` foi reiniciado com sucesso e os erros de carregamento observados anteriormente deixaram de aparecer na verificação executada.
-
-Foi adicionado ao repositório o script complementar:
-
-```text
-instalar-dependencias-tumbler-xfce.sh
-```
-
-Aplicação:
-
-```sh
-chmod +x instalar-dependencias-tumbler-xfce.sh
-sudo ./instalar-dependencias-tumbler-xfce.sh install
-```
-
-Verificação:
-
-```sh
-./instalar-dependencias-tumbler-xfce.sh status
-```
-
-O script usa Shell POSIX `/bin/sh`, verifica Arch Linux e o pacote `tumbler`, instala somente `libgepub`, `libgsf` e `libopenraw` com `pacman -S --needed`, valida os pacotes e tenta encerrar somente a instância `tumblerd` do usuário que chamou `sudo`, permitindo que o serviço seja recarregado pela sessão quando necessário.
-
-Ele **não executa `pacman -Syyu` e não força uma atualização completa do sistema**.
-
-## O que o instalador principal faz
-
-O script `configurar-kwin-x11-xfce4.sh`:
-
-1. confirma que está rodando no Arch Linux;
-2. confirma a presença do XFCE (`xfce4-session`, `xfce4-settings` e `xfconf`);
-3. cria backup completo dos arquivos que serão modificados;
-4. instala, pelos repositórios oficiais do Arch, `kwin-x11`, `systemsettings`, `wmctrl` e `xmlstarlet`;
-5. instala `/usr/local/bin/kwin-xfce-session`;
-6. altera somente a sessão **Failsafe X11** do XFCE para iniciar o wrapper do KWin;
-7. remove atalhos XFCE conhecidos que conflitam com `Super+Tab` e mantém apenas o provider `commands`, pois o provider de atalhos do xfwm4 deixa de ser necessário;
-8. grava em `/etc/skel/.config/kwinrc` o estado inicial com 4 workspaces;
-9. grava em `/etc/skel/.config/kglobalshortcutsrc` os atalhos do KWin/KGlobalAccel;
-10. remove artefatos conhecidos das tentativas antigas que causavam race conditions ou bloqueavam a alteração da quantidade de workspaces;
-11. remove `xfwm4`, `xfwm4-themes` (se instalado) e `picom` sem usar `--nodeps`;
-12. executa validações estáticas no final;
-13. registra log em `/var/log/configurar-kwin-x11-xfce4.log`;
-14. oferece restauração a partir do backup criado antes da instalação.
-
-## Instalação principal
-
-Clone o repositório e execute:
-
-```sh
-git clone https://github.com/mintonogueira/configurar-kwin-x11-xfce4.git
-cd configurar-kwin-x11-xfce4
-chmod +x configurar-kwin-x11-xfce4.sh
-sudo ./configurar-kwin-x11-xfce4.sh install
-```
-
-Depois faça **logout completo** e entre novamente em uma sessão **XFCE/X11**.
-
-Também é possível executar sem argumento:
-
-```sh
-sudo ./configurar-kwin-x11-xfce4.sh
-```
-
-`install` é o modo padrão.
-
-## Verificação
-
-```sh
-sudo ./configurar-kwin-x11-xfce4.sh status
-```
-
-Após login no XFCE/X11, também podem ser usados:
-
-```sh
-wmctrl -m
-pgrep -a kwin_x11
-pgrep -a kglobalacceld
-pgrep -a xfwm4
-pgrep -a picom
-```
-
-O esperado é `Name: KWin`, processos `kwin_x11` e `kglobalacceld` ativos e nenhuma instância de `xfwm4` ou `picom`.
-
-## Novos usuários
-
-A parte decisiva da solução é `/etc/skel`.
-
-Quando um usuário é criado com, por exemplo:
-
-```sh
-sudo useradd -m usuario
-sudo passwd usuario
-```
-
-o Arch copia `/etc/skel` para o novo HOME. Assim, **antes do primeiro login**, o usuário já recebe os defaults corretos do KWin e do KGlobalAccel.
-
-### Workspaces iniciais
-
-`/etc/skel/.config/kwinrc`:
+Quatro desktops virtuais são definidos como **padrão inicial**, não como limite permanente:
 
 ```ini
 [Desktops]
@@ -197,124 +98,144 @@ Number=4
 Rows=1
 ```
 
-O wrapper não grava `Number=4`. Portanto o usuário pode aumentar ou reduzir a quantidade depois.
+A configuração não é regravada a cada login, portanto o usuário pode alterar a quantidade posteriormente.
 
-### Atalhos
+Como `xfwm4` não está instalado, o item **Espaços de trabalho** do XFCE normalmente tentaria executar `xfwm4-workspace-settings` e falharia.
 
-`/etc/skel/.config/kglobalshortcutsrc` contém:
+A suíte cria a ponte global:
+
+```text
+/usr/local/bin/xfwm4-workspace-settings
+```
+
+que executa:
+
+```text
+kcmshell6 kcm_kwin_virtualdesktops_x11
+```
+
+Assim, o painel de configurações do XFCE abre diretamente o gerenciador de desktops virtuais do KWin X11.
+
+## Atalhos
+
+Responsabilidade do KWin/KGlobalAccel:
+
+```text
+Alt+Tab          próxima janela
+Alt+Shift+Tab    janela anterior
+Alt+F4           fechar janela
+```
+
+Responsabilidade dos atalhos XFCE, chamando ações do KWin:
+
+```text
+Super+Tab          próximo workspace
+Super+Shift+Tab    workspace anterior
+Super+L            bloquear sessão
+```
+
+A navegação entre workspaces usa wrapping circular.
+
+## Pacotes selecionados
+
+A suíte instala componentes XFCE individualmente, além de Xorg, KWin, LightDM/Slick Greeter, NetworkManager, BlueZ/Blueman, GVFS/FUSE, PipeWire/WirePlumber, GStreamer, VLC, Audacious, CUPS, Samba, Rclone, FileZilla, Flatpak, Thunderbird, Spectacle, htop, Terminator, Alacritty e demais componentes descritos em `10-instalar-pacotes.sh`.
+
+Entre as substituições deliberadas estão:
+
+```text
+xfce4-terminal       -> terminator + alacritty
+xfce4-taskmanager    -> htop
+xfce4-screenshooter  -> spectacle
+```
+
+DockBarX é instalado com seu plugin XFCE, mas o script não força a posição do plugin no painel.
+
+## Pacotes fora do escopo
+
+A suíte rejeita a presença dos seguintes pacotes estruturais:
+
+```text
+xfce4-session
+xfwm4
+xfce4-screensaver
+plasma-desktop
+plasma-workspace
+xdg-desktop-portal-kde
+```
+
+Nada é removido automaticamente quando uma incompatibilidade é encontrada; a execução aborta para revisão do administrador.
+
+## Serviços
+
+São habilitados:
+
+```text
+lightdm.service
+NetworkManager.service
+bluetooth.service
+cups.service
+```
+
+`cups-browsed.service` é tratado quando a unit estiver disponível.
+
+## LightDM
+
+A sessão própria é registrada em:
+
+```text
+/usr/share/xsessions/xfce-kwin.desktop
+```
+
+A configuração do LightDM usa:
+
+```text
+/etc/lightdm/lightdm.conf.d/50-xfce-kwin.conf
+```
+
+com:
 
 ```ini
-[kwin]
-Walk Through Windows=Alt+Tab,Alt+Tab,Walk Through Windows
-Walk Through Windows (Reverse)=Alt+Shift+Tab,Alt+Shift+Tab,Walk Through Windows (Reverse)
-Window Close=Alt+F4,Alt+F4,Close Window
-Switch to Next Desktop=Meta+Tab,Meta+Tab,Switch to Next Desktop
-Switch to Previous Desktop=Meta+Shift+Tab,Meta+Shift+Tab,Switch to Previous Desktop
+[Seat:*]
+greeter-session=lightdm-slick-greeter
+user-session=xfce-kwin
 ```
 
-No KGlobalAccel, a tecla física **Super** é representada como **Meta**.
+## Validação
 
-## KWin como compositor
+`80-validar-instalacao.sh` possui duas etapas:
 
-O KWin X11 é simultaneamente o gerenciador de janelas e o compositor desta configuração. O Picom é removido para impedir dois compositores tentando operar sobre a mesma sessão X11.
+- validação estática da instalação;
+- validação runtime após o primeiro login.
 
-O `systemsettings` é instalado para disponibilizar a interface gráfica de configuração do KWin, incluindo decorações, efeitos e comportamento das janelas.
+Após iniciar a sessão gráfica:
 
-## Script da correção de workspaces
-
-O script `corrigir-xfce-workspace-settings-kwin-x11.sh` foi escrito para ser independente do instalador principal e pode ser usado em máquinas que já receberam a configuração anterior.
-
-Ele:
-
-1. confirma Arch Linux e `pacman`;
-2. garante `kwin-x11` e `kcmutils`;
-3. confirma a presença de `kwin_x11`, `kcmshell6` e do KCM de desktops virtuais;
-4. cria backup de um shim anterior, caso exista;
-5. instala atomicamente `/usr/local/bin/xfwm4-workspace-settings`;
-6. usa `kcm_kwin_virtualdesktops_x11` no Arch atual;
-7. possui fallback para `kcm_kwin_virtualdesktops`;
-8. valida se o comando está visível no `PATH`;
-9. registra operações em `/var/log/corrigir-xfce-workspace-settings-kwin-x11.log`;
-10. oferece `status` e `remove`.
-
-## Script das dependências do Tumbler
-
-O script `instalar-dependencias-tumbler-xfce.sh` é independente do instalador principal e pode ser executado em uma instalação XFCE já existente.
-
-Ele:
-
-1. confirma Arch Linux e `pacman`;
-2. confirma que o pacote `tumbler` está instalado;
-3. instala `libgepub`, `libgsf` e `libopenraw` com `--needed`;
-4. valida os três pacotes após a transação;
-5. não usa `-Syyu`;
-6. não modifica KWin, KGlobalAccel, workspaces ou atalhos;
-7. tenta recarregar o `tumblerd` do usuário que chamou `sudo` sem afetar outros usuários;
-8. registra operações em `/var/log/instalar-dependencias-tumbler-xfce.log`;
-9. oferece `install`, `status`, `--help` e `--version`.
-
-## Backup e restauração
-
-Antes da alteração principal é criado um backup em:
-
-```text
-/var/backups/configurar-kwin-x11-xfce4/AAAAMMDD_HHMMSS/
+```bash
+TARGET_USER=<usuario> ./80-validar-instalacao.sh --runtime
 ```
 
-O último backup fica registrado em:
+Ainda são exigidos testes manuais de atalhos, bloqueio, workspaces, integração XFCE -> KWin, rede, Bluetooth, PipeWire, CUPS, Thunar/GVFS e painel.
 
-```text
-/var/backups/configurar-kwin-x11-xfce4/LAST_BACKUP
+## Uso
+
+Execute como root em uma instalação Arch preparada:
+
+```bash
+chmod +x *.sh
+./instalar-tudo.sh --user USUARIO
 ```
 
-Para restaurar o último backup:
+Em chroot, os serviços são apenas habilitados. Depois do reboot e primeiro login, execute a validação runtime.
 
-```sh
-sudo ./configurar-kwin-x11-xfce4.sh restore
+O perfil `/etc/skel`, se desejado, é uma etapa separada:
+
+```bash
+TARGET_USER=USUARIO ./60-preparar-perfil-skel.sh
 ```
 
-Para escolher um backup específico:
+## Estado de validação
 
-```sh
-sudo ./configurar-kwin-x11-xfce4.sh restore /var/backups/configurar-kwin-x11-xfce4/AAAAMMDD_HHMMSS
-```
+Os scripts desta revisão foram verificados sintaticamente com `bash -n` durante a construção. Isso **não equivale a validação funcional completa em uma instalação Arch real**. A suíte só deve ser declarada operacionalmente validada depois da execução integral e dos testes runtime/manuais.
 
-A restauração devolve os arquivos anteriores e tenta reinstalar `xfwm4`, `xfwm4-themes` e/ou `picom` quando eles estavam instalados antes da implantação e continuam disponíveis nos repositórios configurados.
+## Licença
 
-O script de correção de workspaces mantém seus próprios backups em:
-
-```text
-/var/backups/corrigir-xfce-workspace-settings-kwin-x11/
-```
-
-## Atualizações do Arch
-
-O script principal modifica arquivos sob `/etc/xdg/xfce4` que são fornecidos por pacotes do XFCE. Uma atualização futura pode produzir arquivos `.pacnew`. Após atualizações grandes do XFCE/KDE, execute `status` e revise eventuais `.pacnew` antes de substituí-los.
-
-O shim `/usr/local/bin/xfwm4-workspace-settings` está fora da árvore controlada pelo `pacman`, evitando sobrescrever arquivos pertencentes aos pacotes oficiais.
-
-## Limites atuais
-
-- suporte inicial: **Arch Linux**;
-- sessão suportada: **X11**;
-- não é uma solução para XFCE/Wayland;
-- os defaults de atalhos via `/etc/skel` são destinados principalmente a **usuários novos**;
-- configurações pessoais já existentes continuam podendo sobrepor defaults globais;
-- não são utilizadas opções do pacman que ignorem dependências.
-
-## Documentação adicional
-
-- [`docs/IMPLEMENTACAO.md`](docs/IMPLEMENTACAO.md) — arquitetura e fluxo detalhado;
-- [`docs/TESTES.md`](docs/TESTES.md) — validação e testes;
-- [`docs/ERROS-E-APRENDIZADOS.md`](docs/ERROS-E-APRENDIZADOS.md) — abordagens que falharam e por quê;
-- [`CHANGELOG.md`](CHANGELOG.md) — histórico das atualizações do repositório.
-
-## Referências técnicas
-
-- Arch Linux `kwin-x11`: https://archlinux.org/packages/extra/x86_64/kwin-x11/
-- Arch Linux `kcmutils`: https://archlinux.org/packages/extra/x86_64/kcmutils/
-- Arch Linux `kglobalacceld`: https://archlinux.org/packages/extra/x86_64/kglobalacceld/
-- Arch Linux `systemsettings`: https://archlinux.org/packages/extra/x86_64/systemsettings/
-- Arch Linux `xfce4-session`: https://archlinux.org/packages/extra/x86_64/xfce4-session/
-- Arch Linux `xmlstarlet`: https://archlinux.org/packages/extra/x86_64/xmlstarlet/
-- Xfce session manager: https://docs.xfce.org/xfce/xfce4-session/start
+GNU General Public License v3.0. Consulte `LICENSE`.

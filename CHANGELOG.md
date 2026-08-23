@@ -1,90 +1,50 @@
 # Changelog
 
-## 2026-08-20 — Dependências opcionais do Tumbler
+## 2026-08-23 — Reconstrução completa do escopo
 
-Durante a investigação do tempo de inicialização da sessão XFCE, o `tumblerd.service` apresentou aproximadamente 20,5 segundos de inicialização e o journal registrou falhas de carregamento dos plugins:
+O repositório foi reorganizado para refletir a arquitetura atual do projeto.
 
-```text
-tumbler-gepub-thumbnailer.so -> libgepub-0.7.so.0 ausente
-tumbler-odf-thumbnailer.so   -> libgsf-1.so.114 ausente
-tumbler-raw-thumbnailer.so   -> libopenrawgnome.so.9 ausente
-```
+### Alterações estruturais
 
-No sistema Arch Linux usado nos testes, a instalação de `libgepub`, `libgsf` e `libopenraw` foi concluída com sucesso. Após reiniciar `tumblerd.service`, o serviço voltou ativo e os erros acima não reapareceram na verificação executada.
+- substituição do instalador monolítico por uma suíte modular;
+- criação de `instalar-tudo.sh` como orquestrador;
+- validação de ambiente separada da alteração do sistema;
+- configuração do Chaotic-AUR como primeira alteração efetiva;
+- instalação de pacotes oficiais e pacotes do repositório `chaotic-aur` em etapas distintas;
+- criação de sessão própria `XFCE + KWin X11` para LightDM;
+- uso de LightDM Slick Greeter;
+- KWin X11 como único window manager/compositor da sessão;
+- remoção de `xfce4-session` e `xfwm4` do escopo;
+- configuração de quatro workspaces apenas como default inicial;
+- integração de atalhos KWin/KGlobalAccel com atalhos XFCE;
+- inclusão da ponte `xfwm4-workspace-settings` -> `kcm_kwin_virtualdesktops_x11`;
+- criação de ações globais de logout, reboot, poweroff e suspend sem `xfce4-session`;
+- configuração de NetworkManager comum com `network-manager-applet`/`nm-applet`;
+- inclusão de DockBarX e `xfce4-dockbarx-plugin` diretamente do Chaotic-AUR;
+- `/etc/skel` convertido em etapa opcional e removido do fluxo mestre;
+- sessão Wayland removida integralmente do escopo atual;
+- validação estática e runtime separadas.
 
-### Script complementar adicionado
+### Aplicativos e integrações
 
-```text
-instalar-dependencias-tumbler-xfce.sh
-```
+A lista atual inclui, entre outros:
 
-O script:
+- Xorg, `xorg-xinit` e `xorg-xwayland`;
+- KWin (`kwin` e `kwin-x11`), KGlobalAccel e System Settings;
+- LightDM e Slick Greeter;
+- Terminator e Alacritty;
+- htop;
+- Spectacle;
+- NetworkManager e NetworkManager Applet;
+- BlueZ e Blueman;
+- PipeWire, WirePlumber e PavuControl;
+- GStreamer e plugins selecionados;
+- VLC e Audacious;
+- stack CUPS ampliado;
+- Samba, Rclone e FileZilla;
+- Thunderbird com tradução `pt-BR`;
+- Paru, Octopi, Google Chrome, Brave, DockBarX e plugin XFCE via Chaotic-AUR.
 
-- usa Shell POSIX `/bin/sh`;
-- valida Arch Linux e a presença do pacote `tumbler`;
-- instala apenas `libgepub`, `libgsf` e `libopenraw` com `pacman -S --needed --noconfirm`;
-- não executa `pacman -Syyu` e não força atualização completa do sistema;
-- valida que os três pacotes estejam instalados após a transação;
-- quando executado via `sudo`, tenta encerrar somente o `tumblerd` do usuário chamador para que a sessão o recarregue com as bibliotecas disponíveis;
-- fornece modos `install`, `status`, `--help` e `--version`;
-- registra log em `/var/log/instalar-dependencias-tumbler-xfce.log`.
+### Estado
 
-### Estado de validação
-
-O código foi validado sintaticamente com `dash -n` e `sh -n`. A correção de dependências foi também validada funcionalmente no sistema Arch Linux em que os erros foram observados: os três pacotes foram instalados e o `tumblerd.service` reiniciou corretamente.
-
-## 2026-08-20 — Compatibilidade do configurador de workspaces do XFCE
-
-Foi identificado um problema após a remoção completa do `xfwm4`: componentes do XFCE ainda podem tentar executar `xfwm4-workspace-settings` ao abrir as configurações dos espaços de trabalho.
-
-Como o binário deixa de existir quando `xfwm4` é removido, o XFCE exibe erro de processo filho inexistente.
-
-### Correção adicionada
-
-Novo script:
-
-```text
-corrigir-xfce-workspace-settings-kwin-x11.sh
-```
-
-Ele instala globalmente:
-
-```text
-/usr/local/bin/xfwm4-workspace-settings
-```
-
-O arquivo funciona como uma camada de compatibilidade e redireciona a chamada antiga do XFCE para o KCM de desktops virtuais do KWin.
-
-No Arch Linux atual é utilizado:
-
-```text
-kcmshell6 kcm_kwin_virtualdesktops_x11
-```
-
-Há fallback para:
-
-```text
-kcmshell6 kcm_kwin_virtualdesktops
-```
-
-### Características
-
-- Shell POSIX `/bin/sh`;
-- suporte inicial a Arch Linux + XFCE/X11 + KWin X11;
-- instalação global para todos os usuários;
-- dependências verificadas/instaladas via `pacman` (`kwin-x11` e `kcmutils`);
-- backup de um shim anterior antes da substituição;
-- escrita temporária seguida de `mv` para reduzir risco de arquivo parcial;
-- validação do `PATH`;
-- modos `install`, `status` e `remove`;
-- logs em `/var/log/corrigir-xfce-workspace-settings-kwin-x11.log`.
-
-### Estado de validação
-
-O código foi validado sintaticamente com `dash -n` e `sh -n` antes da publicação. A validação funcional do update deve ser confirmada em uma sessão Arch Linux + XFCE/X11 após a instalação.
-
-## 2026-08-20 — Workspaces iniciais sem limite permanente
-
-A configuração de quatro workspaces foi corrigida para ser apenas o estado inicial dos novos usuários por meio de `/etc/skel/.config/kwinrc`.
-
-O wrapper `/usr/local/bin/kwin-xfce-session` não deve regravar `Number=4` em cada login. Assim, o usuário pode posteriormente criar 5, 6, 7, 8 ou mais workspaces normalmente.
+A revisão foi validada sintaticamente com `bash -n`. A validação funcional end-to-end permanece necessária antes de declarar a suíte estável.
