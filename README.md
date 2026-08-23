@@ -2,7 +2,21 @@
 
 Suíte modular para construir uma sessão **XFCE + KWin X11** no Arch Linux sem `xfce4-session`, sem `xfwm4` e sem Plasma Desktop como sessão.
 
-O projeto parte de uma instalação Arch limpa, configura o Chaotic-AUR, instala os componentes selecionados, habilita os serviços necessários, cria uma sessão própria do LightDM com Slick Greeter, integra o XFCE ao KWin e valida o resultado.
+O projeto parte de uma instalação Arch já preparada com **Xorg/X11 funcional**. A suíte configura o Chaotic-AUR, instala os componentes selecionados, habilita os serviços necessários, cria uma sessão própria do LightDM com Slick Greeter, integra o XFCE ao KWin e valida o resultado.
+
+## Pré-requisito gráfico
+
+O servidor X não é instalado por esta suíte.
+
+Antes de executar o fluxo mestre, a instalação base deve possuir pelo menos:
+
+```text
+xorg-server
+```
+
+O `00-validar-ambiente.sh` verifica esse pré-requisito e aborta se o Xorg não estiver disponível.
+
+A suíte não instala nem gerencia o grupo `xorg`, `xorg-xinit`, `xorg-xwayland` ou `xf86-input-libinput`. Esses componentes, quando necessários ao host, pertencem à preparação da instalação base.
 
 ## Arquitetura
 
@@ -56,7 +70,7 @@ instalar-tudo.sh
 
 ### Wayland
 
-Nenhuma sessão Wayland é criada, configurada ou validada por esta suíte. Os pacotes `kwin` e `xorg-xwayland` permanecem instalados porque fazem parte da seleção atual, mas qualquer desenho de sessão Wayland será tratado em etapa futura e separada.
+Nenhuma sessão Wayland é criada, configurada ou validada por esta suíte. Qualquer desenho de sessão Wayland será tratado em etapa futura e separada.
 
 ## Chaotic-AUR
 
@@ -138,7 +152,7 @@ A navegação entre workspaces usa wrapping circular.
 
 ## Pacotes selecionados
 
-A suíte instala componentes XFCE individualmente, além de Xorg, KWin, LightDM/Slick Greeter, NetworkManager, BlueZ/Blueman, GVFS/FUSE, PipeWire/WirePlumber, GStreamer, VLC, Audacious, CUPS, Samba, Rclone, FileZilla, Flatpak, Thunderbird, Spectacle, htop, Terminator, Alacritty e demais componentes descritos em `10-instalar-pacotes.sh`.
+A suíte instala componentes XFCE individualmente sobre uma base Xorg já existente, além de KWin, LightDM/Slick Greeter, NetworkManager, BlueZ/Blueman, GVFS/FUSE, PipeWire/WirePlumber, GStreamer, VLC, Audacious, CUPS, Samba, Rclone, FileZilla, Flatpak, Thunderbird, Spectacle, htop, Terminator, Alacritty e demais componentes descritos em `10-instalar-pacotes.sh`.
 
 Entre as substituições deliberadas estão:
 
@@ -217,7 +231,7 @@ Ainda são exigidos testes manuais de atalhos, bloqueio, workspaces, integraçã
 
 ## Uso
 
-Execute como root em uma instalação Arch preparada:
+Execute como root em uma instalação Arch **já preparada com Xorg/X11**:
 
 ```bash
 chmod +x *.sh
@@ -234,7 +248,7 @@ TARGET_USER=USUARIO ./60-preparar-perfil-skel.sh
 
 ## Estado de validação
 
-Os scripts desta revisão foram verificados sintaticamente com `bash -n` durante a construção. Isso **não equivale a validação funcional completa em uma instalação Arch real**. A suíte só deve ser declarada operacionalmente validada depois da execução integral e dos testes runtime/manuais.
+Os scripts desta revisão foram verificados sintaticamente durante a construção, mas isso **não equivale a validação funcional completa em uma instalação Arch real**. A suíte só deve ser declarada operacionalmente validada depois da execução integral e dos testes runtime/manuais.
 
 ## Licença
 

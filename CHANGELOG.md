@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-23 — Xorg convertido em pré-requisito
+
+Após validar que o problema observado na instalação vinha de uma base Arch mínima sem a pilha gráfica preparada, o escopo foi simplificado.
+
+### Alterações
+
+- o instalador deixa de instalar o grupo `xorg`;
+- `xorg-xinit` e `xorg-xwayland` saem da lista gerenciada pela suíte;
+- `xf86-input-libinput` também sai da lista explícita;
+- `xorg-server` passa a ser pré-requisito da instalação base;
+- `00-validar-ambiente.sh` verifica `xorg-server` e o executável `Xorg` antes de qualquer alteração;
+- `80-validar-instalacao.sh` valida `xorg-server`, mas não exige `xorg-xwayland`;
+- documentação atualizada para deixar claro que a suíte começa sobre uma base X11 já funcional.
+
+Essa mudança também elimina a necessidade de expandir o grupo `xorg` após habilitar o Chaotic-AUR, evitando que variantes `*-git` de repositórios de terceiros entrem acidentalmente na transação.
+
 ## 2026-08-23 — Reconstrução completa do escopo
 
 O repositório foi reorganizado para refletir a arquitetura atual do projeto.
@@ -29,7 +45,6 @@ O repositório foi reorganizado para refletir a arquitetura atual do projeto.
 
 A lista atual inclui, entre outros:
 
-- Xorg, `xorg-xinit` e `xorg-xwayland`;
 - KWin (`kwin` e `kwin-x11`), KGlobalAccel e System Settings;
 - LightDM e Slick Greeter;
 - Terminator e Alacritty;
@@ -47,4 +62,4 @@ A lista atual inclui, entre outros:
 
 ### Estado
 
-A revisão foi validada sintaticamente com `bash -n`. A validação funcional end-to-end permanece necessária antes de declarar a suíte estável.
+A validação funcional end-to-end permanece necessária antes de declarar a suíte estável.

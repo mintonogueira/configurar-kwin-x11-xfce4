@@ -15,53 +15,12 @@ info() {
 command -v pacman >/dev/null 2>&1 ||
     fail 'pacman ausente.'
 
-# O grupo "xorg" pode receber membros adicionais de repositórios de terceiros.
-# Como o Chaotic-AUR é configurado antes desta etapa, não podemos usar diretamente
-# todo o resultado de "pacman -Sgq xorg": pacotes *-git do Chaotic-AUR podem
-# declarar o mesmo grupo e conflitar com os pacotes oficiais do Arch.
-#
-# Portanto:
-#   1. lemos todos os nomes declarados no grupo xorg;
-#   2. mantemos somente os que existem em repositórios oficiais do Arch;
-#   3. guardamos o alvo qualificado (repo/pacote), impedindo o pacman de escolher
-#      uma variante de outro repositório durante a instalação.
-
-OFFICIAL_REPOS=(
-    core
-    extra
-    multilib
-)
-
-XORG_GROUP=()
-
-while IFS= read -r pkg; do
-    [[ -n ${pkg} ]] || continue
-
-    for repo in "${OFFICIAL_REPOS[@]}"; do
-        if pacman -Si "${repo}/${pkg}" >/dev/null 2>&1; then
-            XORG_GROUP+=("${repo}/${pkg}")
-            break
-        fi
-    done
-done < <(
-    pacman -Sgq xorg |
-        sort -u
-)
-
-((${#XORG_GROUP[@]})) ||
-    fail 'nenhum membro oficial do grupo xorg foi encontrado.'
-
-info "grupo xorg filtrado: ${#XORG_GROUP[@]} pacote(s) oficial(is)."
+# O servidor Xorg é pré-requisito desta suíte e não é instalado aqui.
+# A instalação base deve chegar a esta etapa com xorg-server funcional.
 
 PACOTES_REPOS_OFICIAIS=(
-    "${XORG_GROUP[@]}"
-    xorg-xinit
-    xorg-xwayland
-
-    # Entrada / dispositivos apontadores.
-    # Mantidos explicitamente mesmo que possam vir por dependência do Xorg.
+    # Entrada.
     libinput
-    xf86-input-libinput
 
     # Núcleo XFCE selecionado; sem xfce4-session e sem xfwm4.
     exo

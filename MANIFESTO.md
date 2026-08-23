@@ -23,6 +23,9 @@ Opcional e fora do mestre:
 
 ## Regras incorporadas
 
+- A suíte pressupõe uma instalação Arch já preparada com `xorg-server` e sessão X11 funcional.
+- O instalador não gerencia o grupo `xorg`, `xorg-xinit`, `xorg-xwayland` ou `xf86-input-libinput`.
+- `00-validar-ambiente.sh` aborta se `xorg-server` não estiver instalado.
 - NetworkManager comum:
   - pacote `networkmanager`
   - serviço `NetworkManager.service`
@@ -38,5 +41,3 @@ Opcional e fora do mestre:
   `kcmshell6 kcm_kwin_virtualdesktops_x11`.
 - `/etc/skel` é opcional.
 - Nenhuma sessão Wayland é criada, configurada ou validada nesta suíte.
-- Os pacotes `kwin` e `xorg-xwayland` permanecem na lista porque foram
-  solicitados explicitamente, mas não existe lógica de sessão Wayland.

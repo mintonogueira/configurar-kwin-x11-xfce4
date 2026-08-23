@@ -52,6 +52,16 @@ TARGET_HOME="$(
 pacman -Q archlinux-keyring >/dev/null 2>&1 ||
     fail 'pacote archlinux-keyring não está instalado.'
 
+# A suíte não instala o servidor X. Ela pressupõe uma base Arch já preparada
+# para sessão gráfica X11.
+pacman -Q xorg-server >/dev/null 2>&1 ||
+    fail 'pré-requisito ausente: xorg-server. Instale a base gráfica X11 antes de executar esta suíte.'
+
+command -v Xorg >/dev/null 2>&1 ||
+    fail 'pré-requisito ausente: executável Xorg não encontrado.'
+
+info 'pré-requisito gráfico validado: xorg-server já instalado.'
+
 if getent ahosts archlinux.org >/dev/null 2>&1; then
     info 'resolução de nomes funcionando.'
 else

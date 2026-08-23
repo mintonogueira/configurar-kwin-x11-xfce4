@@ -26,6 +26,7 @@ elif [[ $# -gt 0 ]]; then
 fi
 
 PACOTES_OBRIGATORIOS=(
+    xorg-server
     kwin
     kwin-x11
     kglobalacceld
@@ -42,7 +43,6 @@ PACOTES_OBRIGATORIOS=(
     xfconf
     pipewire
     wireplumber
-    xorg-xwayland
     dockbarx
     xfce4-dockbarx-plugin
 )
@@ -134,7 +134,7 @@ info 'validação estática concluída.'
 
 if [[ $RUNTIME -eq 1 ]]; then
     systemd-detect-virt --chroot >/dev/null 2>&1 &&
-        fail '--runtime não pode ser usado dentro de chroot.'
+        fail '--runtime não pode ser usado dentro do chroot.'
 
     must_run=(
         kwin_x11
