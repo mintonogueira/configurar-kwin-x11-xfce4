@@ -15,15 +15,43 @@ info() {
 command -v pacman >/dev/null 2>&1 ||
     fail 'pacman ausente.'
 
-# "xorg" é um grupo no Arch, não um metapacote.
-# Expandimos o grupo para eliminar o prompt interativo de seleção.
-mapfile -t XORG_GROUP < <(
+# O grupo "xorg" pode receber membros adicionais de repositórios de terceiros.
+# Como o Chaotic-AUR é configurado antes desta etapa, não podemos usar diretamente
+# todo o resultado de "pacman -Sgq xorg": pacotes *-git do Chaotic-AUR podem
+# declarar o mesmo grupo e conflitar com os pacotes oficiais do Arch.
+#
+# Portanto:
+#   1. lemos todos os nomes declarados no grupo xorg;
+#   2. mantemos somente os que existem em repositórios oficiais do Arch;
+#   3. guardamos o alvo qualificado (repo/pacote), impedindo o pacman de escolher
+#      uma variante de outro repositório durante a instalação.
+
+OFFICIAL_REPOS=(
+    core
+    extra
+    multilib
+)
+
+XORG_GROUP=()
+
+while IFS= read -r pkg; do
+    [[ -n ${pkg} ]] || continue
+
+    for repo in "${OFFICIAL_REPOS[@]}"; do
+        if pacman -Si "${repo}/${pkg}" >/dev/null 2>&1; then
+            XORG_GROUP+=("${repo}/${pkg}")
+            break
+        fi
+    done
+done < <(
     pacman -Sgq xorg |
         sort -u
 )
 
 ((${#XORG_GROUP[@]})) ||
-    fail 'grupo xorg não encontrado.'
+    fail 'nenhum membro oficial do grupo xorg foi encontrado.'
+
+info "grupo xorg filtrado: ${#XORG_GROUP[@]} pacote(s) oficial(is)."
 
 PACOTES_REPOS_OFICIAIS=(
     "${XORG_GROUP[@]}"
