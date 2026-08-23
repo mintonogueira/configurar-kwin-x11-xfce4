@@ -30,6 +30,11 @@ PACOTES_REPOS_OFICIAIS=(
     xorg-xinit
     xorg-xwayland
 
+    # Entrada / dispositivos apontadores.
+    # Mantidos explicitamente mesmo que possam vir por dependência do Xorg.
+    libinput
+    xf86-input-libinput
+
     # Núcleo XFCE selecionado; sem xfce4-session e sem xfwm4.
     exo
     garcon
